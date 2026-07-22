@@ -23,17 +23,27 @@ def main():
     Loads a graph from a point in the world
     Params: point (latitude, longitude), distance(meters), network_type(drive, walk, bike)
     """
+    origin = (42.3551, -71.0656)       # near Boston Common
+    destination = (42.3656, -71.0540)  # near North End / Haymarket
+
     G = ox.graph_from_point(
-        (40.7128, -74.0060), # Boston coordinates
+        (42.3601, -71.0589),  # Boston coordinates
         dist=1500,   # change for bigger or smaller area
         network_type="drive",
     )
 
-    fig, ax = ox.plot_graph(
+    # nearest_nodes expects (longitude, latitude)
+    orig_node = ox.nearest_nodes(G, origin[1], origin[0])
+    dest_node = ox.nearest_nodes(G, destination[1], destination[0])
+
+    route = ox.shortest_path(G, orig_node, dest_node, weight="length")
+
+    fig, ax = ox.plot_graph_route(
         G,
+        route,
+        route_color="blue",
+        route_linewidth=4,
         node_size=8,
-        node_color="red",
-        edge_linewidth=0.5,
         bgcolor="white",
         show=True,
     )
