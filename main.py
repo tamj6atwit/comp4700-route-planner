@@ -1,5 +1,7 @@
+import time
+
 import osmnx as ox
-import networkx as nx
+
 import astar
 import dijkstra
 import bidirectional_astar
@@ -18,35 +20,100 @@ San Francisco: (37.7749, -122.4194)
 Washington DC: (38.8951, -77.0364)
 '''
 
-def main():
+SOLVERS = {
+    "astar": astar,
+    "dijkstra": dijkstra,
+    "bfs": bfs,
+    "bidirectional_astar": bidirectional_astar,
+}
+
+
+def load_graph(center_point, dist=1500, network_type="drive"):
     """
     Loads a graph from a point in the world
     Params: point (latitude, longitude), distance(meters), network_type(drive, walk, bike)
+
+    Also annotates every edge with `speed_kph` (inferred from OSM `maxspeed`,
+    falling back to highway-type defaults where missing) and `travel_time`
+    (length / speed). This lets solvers route by `weight="travel_time"`
+    instead of raw `weight="length"`, so a longer-but-faster highway can be
+    preferred over a shorter-but-slower side street.
     """
-    origin = (42.3551, -71.0656)       # near Boston Common
+    G = ox.graph_from_point(center_point, dist=dist, network_type=network_type)
+    G = ox.add_edge_speeds(G)
+    G = ox.add_edge_travel_times(G)
+    return G
+
+
+def run_solver(solver_name, G, orig_node, dest_node, weight="length"):
+    module = SOLVERS[solver_name]
+    start = time.perf_counter()
+    result = module.find_path(G, orig_node, dest_node, weight=weight)
+    elapsed = time.perf_counter() - start
+
+    print(f"[{solver_name}] route length: {len(result.route)} nodes | "
+          f"cost: {result.cost:.1f} {weight} | "
+          f"nodes expanded: {result.nodes_expanded} | "
+          f"time: {elapsed * 1000:.2f} ms")
+    return result, elapsed
+
+
+def main():
+    origin = (42.3502, -71.0750)       # Trinity Church (changed to show why A* might not be perfect)
     destination = (42.3656, -71.0540)  # near North End / Haymarket
 
-    G = ox.graph_from_point(
-        (42.3601, -71.0589),  # Boston coordinates
-        dist=1500,   # change for bigger or smaller area
-        network_type="drive",
-    )
+    G = load_graph((42.3601, -71.0589), dist=1500, network_type="drive")
 
     # nearest_nodes expects (longitude, latitude)
     orig_node = ox.nearest_nodes(G, origin[1], origin[0])
     dest_node = ox.nearest_nodes(G, destination[1], destination[0])
 
-    route = ox.shortest_path(G, orig_node, dest_node, weight="length")
+    # Run every solver that's implemented so far, once per weight, so we can
+    # compare shortest-distance routing vs shortest-time routing (the latter
+    # is what lets a solver prefer a longer-but-faster highway). Skip solvers
+    # that still raise NotImplementedError so teammates can plug theirs in
+    # independently.
+    results = {}
+    for weight in ("length", "travel_time"):
+        print(f"\n--- weight = {weight} ---")
+        for name in SOLVERS:
+            try:
+                result, elapsed = run_solver(name, G, orig_node, dest_node, weight=weight)
+                results[(name, weight)] = (result, elapsed)
+            except NotImplementedError:
+                print(f"[{name}] not implemented yet, skipping")
 
-    fig, ax = ox.plot_graph_route(
-        G,
-        route,
-        route_color="blue",
-        route_linewidth=4,
-        node_size=8,
-        bgcolor="white",
-        show=True,
-    )
+    # Plot A*'s distance-optimal route vs its time-optimal route side by side,
+    # if both are available.
+    routes, colors, labels = [], [], []
+    if ("astar", "length") in results:
+        routes.append(results[("astar", "length")][0].route)
+        colors.append("blue")
+        labels.append("shortest distance")
+    if ("astar", "travel_time") in results:
+        routes.append(results[("astar", "travel_time")][0].route)
+        colors.append("red")
+        labels.append("shortest time")
+
+    if routes:
+        ox.plot_graph_routes(
+            G,
+            routes,
+            route_colors=colors,
+            route_linewidth=4,
+            node_size=8,
+            bgcolor="white",
+            show=True,
+        ) if len(routes) > 1 else ox.plot_graph_route(
+            G,
+            routes[0],
+            route_color=colors[0],
+            route_linewidth=4,
+            node_size=8,
+            bgcolor="white",
+            show=True,
+        )
+        print("\nPlotted routes:", ", ".join(f"{c}={l}" for c, l in zip(colors, labels)))
 
 
 if __name__ == "__main__":
