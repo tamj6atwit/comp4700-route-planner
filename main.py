@@ -59,61 +59,88 @@ def run_solver(solver_name, G, orig_node, dest_node, weight="length"):
 
 
 def main():
-    origin = (42.3502, -71.0750)       # Trinity Church (changed to show why A* might not be perfect)
-    destination = (42.3656, -71.0540)  # near North End / Haymarket
 
-    G = load_graph((42.3601, -71.0589), dist=1500, network_type="drive")
+    # Load the graph
+    G = load_graph((42.3601, -71.0589), dist=15000, network_type="drive")
 
-    # nearest_nodes expects (longitude, latitude)
-    orig_node = ox.nearest_nodes(G, origin[1], origin[0])
-    dest_node = ox.nearest_nodes(G, destination[1], destination[0])
+    # Short pair (~2 km)
+    origin_1 = (42.3502, -71.0750)       # Trinity Church
+    destination_1 = (42.3656, -71.0540)  # near North End / Haymarket
 
-    # Run every solver that's implemented so far, once per weight, so we can
-    # compare shortest-distance routing vs shortest-time routing (the latter
-    # is what lets a solver prefer a longer-but-faster highway). Skip solvers
-    # that still raise NotImplementedError so teammates can plug theirs in
-    # independently.
-    results = {}
-    for weight in ("length", "travel_time"):
-        print(f"\n--- weight = {weight} ---")
-        for name in SOLVERS:
-            try:
-                result, elapsed = run_solver(name, G, orig_node, dest_node, weight=weight)
-                results[(name, weight)] = (result, elapsed)
-            except NotImplementedError:
-                print(f"[{name}] not implemented yet, skipping")
+    # Medium pair (~9 km)
+    origin_2 = (42.3736, -71.1190)       # Harvard Square, Cambridge
+    destination_2 = (42.3412, -71.0330)  # Seaport / Fort Point, South Boston
 
-    # Plot A*'s distance-optimal route vs its time-optimal route side by side,
-    # if both are available.
-    routes, colors, labels = [], [], []
-    if ("astar", "length") in results:
-        routes.append(results[("astar", "length")][0].route)
-        colors.append("blue")
-        labels.append("shortest distance")
-    if ("astar", "travel_time") in results:
-        routes.append(results[("astar", "travel_time")][0].route)
-        colors.append("red")
-        labels.append("shortest time")
+    # Long pair (~28 km straight-line)
+    origin_3 = (42.4230, -71.2066)       # Waltham / WNW edge
+    destination_3 = (42.2971, -70.9115)  # Quincy / ESE edge
 
-    if routes:
-        ox.plot_graph_routes(
-            G,
-            routes,
-            route_colors=colors,
-            route_linewidth=4,
-            node_size=8,
-            bgcolor="white",
-            show=True,
-        ) if len(routes) > 1 else ox.plot_graph_route(
-            G,
-            routes[0],
-            route_color=colors[0],
-            route_linewidth=4,
-            node_size=8,
-            bgcolor="white",
-            show=True,
-        )
-        print("\nPlotted routes:", ", ".join(f"{c}={l}" for c, l in zip(colors, labels)))
+    # Very long pair (~67 km straight-line) (Takes a while to run, commented out to skip)
+    #origin_4 = (42.3601, -71.0589)       # Boston Common / downtown
+    #destination_4 = (41.8236, -71.4222)  # Providence, RI (downtown)
+
+    pairs = [
+        ("Pair 1: Trinity → North End", origin_1, destination_1),
+        ("Pair 2: Harvard → Seaport", origin_2, destination_2),
+        ("Pair 3: Waltham → Quincy edge", origin_3, destination_3),
+        #("Pair 4: Boston → Providence", origin_4, destination_4),
+    ]
+
+
+    for label, origin, destination in pairs:
+        print(f"\n{'=' * 60}")
+        print(f"{label}")
+        print(f"{'=' * 60}")
+
+        # nearest_nodes expects (longitude, latitude)
+        orig_node = ox.nearest_nodes(G, origin[1], origin[0])
+        dest_node = ox.nearest_nodes(G, destination[1], destination[0])
+
+        # Run every solver that's implemented so far, once per weight, so we can
+        # compare shortest-distance routing vs shortest-time routing (the latter
+        # is what lets a solver prefer a longer-but-faster highway).
+        results = {}
+        for weight in ("length", "travel_time"):
+            print(f"\n--- Weight: {weight} ---")
+            for name in SOLVERS:
+                try:
+                    result, elapsed = run_solver(name, G, orig_node, dest_node, weight=weight)
+                    results[(name, weight)] = (result, elapsed)
+                except NotImplementedError:
+                    print(f"[{name}] not implemented yet, skipping")
+
+        # Plot A*'s distance-optimal route vs its time-optimal route side by side,
+        # if both are available.
+        routes, colors, labels = [], [], []
+        if ("astar", "length") in results:
+            routes.append(results[("astar", "length")][0].route)
+            colors.append("blue")
+            labels.append("shortest distance")
+        if ("astar", "travel_time") in results:
+            routes.append(results[("astar", "travel_time")][0].route)
+            colors.append("red")
+            labels.append("shortest time")
+
+        if routes:
+            ox.plot_graph_routes(
+                G,
+                routes,
+                route_colors=colors,
+                route_linewidth=4,
+                node_size=8,
+                bgcolor="white",
+                show=True,
+            ) if len(routes) > 1 else ox.plot_graph_route(
+                G,
+                routes[0],
+                route_color=colors[0],
+                route_linewidth=4,
+                node_size=8,
+                bgcolor="white",
+                show=True,
+            )
+            print(f"\nPlotted routes for {label}:",
+                  ", ".join(f"{c}={l}" for c, l in zip(colors, labels)))
 
 
 if __name__ == "__main__":
