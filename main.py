@@ -23,7 +23,6 @@ Washington DC: (38.8951, -77.0364)
 SOLVERS = {
     "astar": astar,
     "dijkstra": dijkstra,
-    "bfs": bfs,
     "bidirectional_astar": bidirectional_astar,
 }
 
