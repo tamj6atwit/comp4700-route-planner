@@ -5,7 +5,6 @@ import osmnx as ox
 import astar
 import dijkstra
 import bidirectional_astar
-import bfs
 
 '''
 Coordinates for major cities in USA
@@ -58,10 +57,6 @@ def run_solver(solver_name, G, orig_node, dest_node, weight="length"):
 
 
 def main():
-
-    # Load the graph
-    G = load_graph((42.3601, -71.0589), dist=15000, network_type="drive")
-
     # Short pair (~2 km)
     origin_1 = (42.3502, -71.0750)       # Trinity Church
     destination_1 = (42.3656, -71.0540)  # near North End / Haymarket
@@ -71,22 +66,44 @@ def main():
     destination_2 = (42.3412, -71.0330)  # Seaport / Fort Point, South Boston
 
     # Long pair (~28 km straight-line)
-    origin_3 = (42.4230, -71.2066)       # Waltham / WNW edge
-    destination_3 = (42.2971, -70.9115)  # Quincy / ESE edge
+    # origin_3 = (42.4230, -71.2066)       # Waltham / WNW edge
+    # destination_3 = (42.2971, -70.9115)  # Quincy / ESE edge
 
     # Very long pair (~67 km straight-line) (Takes a while to run, commented out to skip)
-    #origin_4 = (42.3601, -71.0589)       # Boston Common / downtown
-    #destination_4 = (41.8236, -71.4222)  # Providence, RI (downtown)
+    # origin_4 = (42.3601, -71.0589)       # Boston Common / downtown
+    # destination_4 = (41.8236, -71.4222)  # Providence, RI (downtown)
+
+    midpoint_1 = (
+        (origin_1[0] + destination_1[0]) / 2,
+        (origin_1[1] + destination_1[1]) / 2,
+    )
+    #midpoint_2 = (
+    #    (origin_2[0] + destination_2[0]) / 2,
+    #    (origin_2[1] + destination_2[1]) / 2,
+    #)
+    # midpoint_3 = (
+    #     (origin_3[0] + destination_3[0]) / 2,
+    #     (origin_3[1] + destination_3[1]) / 2,
+    # )
+    # midpoint_4 = (
+    #     (origin_4[0] + destination_4[0]) / 2,
+    #     (origin_4[1] + destination_4[1]) / 2,
+    # )
+
+    # Load the graph (dist sized to the pair so the map stays tight)
+    G1 = load_graph(midpoint_1, dist=1000, network_type="drive")
+    #G2 = load_graph(midpoint_2, dist=5000, network_type="drive")
+    # G3 = load_graph(midpoint_3, dist=5000, network_type="drive")
+    # G4 = load_graph(midpoint_4, dist=5000, network_type="drive")
 
     pairs = [
-        ("Pair 1: Trinity → North End", origin_1, destination_1),
-        ("Pair 2: Harvard → Seaport", origin_2, destination_2),
-        ("Pair 3: Waltham → Quincy edge", origin_3, destination_3),
-        #("Pair 4: Boston → Providence", origin_4, destination_4),
+        ("Pair 1: Trinity → North End", origin_1, destination_1, G1),
+        #("Pair 2: Harvard → Seaport", origin_2, destination_2, G2),
+        # ("Pair 3: Waltham → Quincy edge", origin_3, destination_3, G3),
+        # ("Pair 4: Boston → Providence", origin_4, destination_4, G4),
     ]
 
-
-    for label, origin, destination in pairs:
+    for label, origin, destination, G in pairs:
         print(f"\n{'=' * 60}")
         print(f"{label}")
         print(f"{'=' * 60}")
